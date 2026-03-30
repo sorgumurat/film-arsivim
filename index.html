@@ -7,20 +7,14 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #0a0a0a; font-family: system-ui, -apple-system, sans-serif; color: #fff; }
-        
-        /* Header */
         .header { background: #141414; padding: 20px; border-bottom: 1px solid #333; text-align: center; }
         .header h1 { font-size: 1.8rem; background: linear-gradient(135deg, #e50914, #ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block; }
         .stats { font-size: 0.8rem; color: #888; margin-top: 5px; }
-        
-        /* Arama */
         .search-area { max-width: 500px; margin: 30px auto; padding: 0 20px; }
         .search-box { display: flex; gap: 10px; background: #2a2a2a; border-radius: 40px; padding: 5px; }
         .search-box input { flex: 1; background: transparent; border: none; padding: 14px 20px; font-size: 1rem; color: white; outline: none; }
         .search-box button { background: #e50914; border: none; padding: 0 25px; border-radius: 40px; color: white; font-weight: bold; cursor: pointer; }
         .search-box button:hover { background: #f40612; }
-        
-        /* Sonuçlar */
         .results-info { max-width: 1200px; margin: 20px auto 10px; padding: 0 20px; color: #888; font-size: 0.9rem; border-bottom: 1px solid #333; padding-bottom: 10px; }
         .movie-grid { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
         .movie-card { background: #1a1a1a; border-radius: 10px; overflow: hidden; cursor: pointer; display: flex; gap: 12px; padding: 12px; transition: 0.2s; }
@@ -31,8 +25,6 @@
         .movie-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 6px; }
         .badge { font-size: 0.65rem; background: #333; padding: 2px 8px; border-radius: 20px; display: inline-block; width: fit-content; }
         .status { text-align: center; padding: 60px 20px; color: #666; font-size: 1rem; }
-        
-        /* Player Modal - DÜZELTİLDİ */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; }
         .modal.active { display: block; }
         .modal-content { width: 100%; height: 100%; display: flex; flex-direction: column; }
@@ -45,12 +37,7 @@
         .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
         .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #e50914; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        
-        @media (max-width: 600px) {
-            .movie-grid { grid-template-columns: 1fr; }
-            .search-box input { padding: 12px 15px; }
-            .search-box button { padding: 0 20px; }
-        }
+        @media (max-width: 600px) { .movie-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -70,7 +57,6 @@
 <div class="results-info"><span id="resultCount">0</span> sonuç</div>
 <div id="movieGrid" class="movie-grid"><div class="status">⏳ M3U dosyası okunuyor...</div></div>
 
-<!-- Player Modal -->
 <div id="playerModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -85,21 +71,17 @@
 
 <script>
     let moviesData = [];
-    
-    // ⚠️ KENDİ GITHUB ADRESİNİ BURAYA YAZ ⚠️
     const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/film-arsivim/main/liste.m3u';
     
     async function loadM3U() {
         try {
-            console.log('M3U yükleniyor:', M3U_URL);
             const response = await fetch(M3U_URL);
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const text = await response.text();
             parseM3U(text);
         } catch(e) {
-            document.getElementById('movieGrid').innerHTML = `<div class="status">❌ M3U dosyası yüklenemedi.<br><br>📁 Dosya yolu: ${M3U_URL}<br><br>⚠️ GitHub'daki dosyanın adı "liste.m3u" ve ana dizinde olduğundan emin olun.</div>`;
+            document.getElementById('movieGrid').innerHTML = `<div class="status">❌ M3U dosyası yüklenemedi.<br>${M3U_URL}</div>`;
             document.getElementById('stats').innerHTML = '❌ Yükleme hatası';
-            console.error(e);
         }
     }
     
@@ -131,7 +113,6 @@
         moviesData = movies;
         document.getElementById('stats').innerHTML = `📀 ${moviesData.length} film yüklendi`;
         document.getElementById('movieGrid').innerHTML = '<div class="status">🔍 Arama kutusuna film adı yazın</div>';
-        console.log(`${moviesData.length} film yüklendi`);
     }
     
     function search() {
@@ -169,15 +150,19 @@
         }
     }
     
+    // 🔧 DÜZELTİLMİŞ PROXY FONKSİYONU
     async function resolveUrl(movie) {
-        if (movie.type !== 'vidmody') return movie.url;
-        try {
-            const proxy = `https://goproxy.watchbuddy.tv/fetch?url=${encodeURIComponent(movie.url)}&referer=https://vidmody.com/`;
-            const res = await fetch(proxy);
-            const text = await res.text();
-            const match = text.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/);
-            return match ? match[0] : movie.url;
-        } catch(e) { return movie.url; }
+        // Doğrudan m3u8 ise olduğu gibi döndür
+        if (movie.type === 'vidrame' || movie.type === 'm3u8' || movie.url.includes('.m3u8')) {
+            return movie.url;
+        }
+        
+        // Vidmody linkleri için WatchBuddy proxy'sini kullan
+        if (movie.type === 'vidmody') {
+            return `https://goproxy.watchbuddy.tv/proxy/video?url=${encodeURIComponent(movie.url)}&referer=https://vidmody.com/`;
+        }
+        
+        return movie.url;
     }
     
     async function playMovie(movie) {
