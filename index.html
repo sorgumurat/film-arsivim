@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Film Arşivi - TMDB + Embed</title>
+    <title>Film Arşivi</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #0a0a0a; font-family: system-ui; color: #fff; }
@@ -38,7 +38,7 @@
 
 <div class="header">
     <h1>🎬 Film Arşivi</h1>
-    <div style="font-size: 0.8rem; color: #888; margin-top: 5px;">TMDB + Embed | Altyazı & Dual Ses Desteği</div>
+    <div style="font-size: 0.8rem; color: #888; margin-top: 5px;">TMDB + vidsrc.to | Altyazı & Dual Ses Desteği</div>
 </div>
 
 <div class="search-area">
@@ -62,17 +62,11 @@
 </div>
 
 <script>
-    // TMDB API Key (Sizin aldığınız anahtar)
+    // TMDB API Key
     const TMDB_API_KEY = 'e482e6dc4fe81df89c51267e9e14cf96';
     
-    // Çalışan embed servisleri (sırayla denenir)
-    const EMBED_SERVERS = [
-        'https://vidsrc.to/embed/movie/',
-        'https://www.2embed.cc/embed/',
-        'https://embed.su/embed/movie/',
-        'https://multiembed.mov/directstream.php?video_id='
-    ];
-    let currentServer = 0;
+    // Sadece çalışan embed servisi
+    const EMBED_URL = 'https://vidsrc.to/embed/movie/';
     
     async function searchMovies() {
         const query = document.getElementById('searchInput').value.trim();
@@ -124,45 +118,18 @@
         titleEl.innerText = `${title} (${year || '?'})`;
         modal.classList.add('active');
         
-        currentServer = 0;
-        loadEmbed(movieId);
-    }
-    
-    function loadEmbed(movieId) {
-        const container = document.getElementById('playerContainer');
-        let embedUrl;
-        
-        if (EMBED_SERVERS[currentServer].includes('multiembed')) {
-            embedUrl = EMBED_SERVERS[currentServer] + movieId + '&source=vidsrc';
-        } else {
-            embedUrl = EMBED_SERVERS[currentServer] + movieId;
-        }
+        const embedUrl = EMBED_URL + movieId;
         
         container.innerHTML = `
             <iframe src="${embedUrl}" 
                     allowfullscreen 
                     allow="autoplay; encrypted-media"
-                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
                     style="width:100%; height:100%; border:none;">
             </iframe>
             <div style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:8px; font-size:11px; color:#888;">
-                Kaynak: ${EMBED_SERVERS[currentServer].replace('https://', '').replace('/embed/movie/', '').replace('/directstream.php?video_id=', '')}
+                🎬 vidsrc.to
             </div>
         `;
-        
-        // 8 saniye sonra iframe yüklenmediyse sonraki servisi dene
-        setTimeout(() => {
-            const iframe = container.querySelector('iframe');
-            if (iframe && !iframe.contentDocument && iframe.contentWindow === null) {
-                currentServer++;
-                if (currentServer < EMBED_SERVERS.length) {
-                    console.log(`Embed servisi çalışmadı, ${EMBED_SERVERS[currentServer]} deneniyor...`);
-                    loadEmbed(movieId);
-                } else {
-                    container.innerHTML = '<div class="loading">❌ Hiçbir embed servisi çalışmadı.<br><br>📌 Farklı bir film deneyin veya daha sonra tekrar deneyin.</div>';
-                }
-            }
-        }, 8000);
     }
     
     function closePlayer() {
