@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Film Arşivi - Canlı M3U</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: linear-gradient(135deg, #0a0a0a, #1a1a1a); font-family: system-ui; min-height: 100vh; color: #fff; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+        .hero { text-align: center; margin-bottom: 50px; }
+        .hero h1 { font-size: 3rem; background: linear-gradient(135deg, #e50914, #ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stats { background: rgba(229,9,20,0.2); padding: 5px 15px; border-radius: 30px; display: inline-block; margin-top: 15px; }
+        .search-box { max-width: 600px; margin: 0 auto 40px; display: flex; gap: 10px; background: #2a2a2a; border-radius: 50px; padding: 5px; }
+        .search-box input { flex: 1; background: transparent; border: none; padding: 18px 25px; font-size: 1rem; color: white; outline: none; }
+        .search-box button { background: #e50914; border: none; padding: 0 30px; border-radius: 50px; color: white; font-weight: bold; cursor: pointer; }
+        .results-info { margin-bottom: 20px; color: #888; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .movie-card { background: #1e1e1e; border-radius: 12px; overflow: hidden; cursor: pointer; display: flex; gap: 15px; padding: 12px; transition: 0.2s; }
+        .movie-card:hover { background: #2a2a2a; transform: translateX(5px); }
+        .movie-poster { width: 70px; height: 100px; background: #2a2a2a; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 2rem; flex-shrink: 0; }
+        .movie-poster img { width: 100%; height: 100%; object-fit: cover; }
+        .movie-title { font-weight: 600; margin-bottom: 5px; }
+        .badge { font-size: 0.7rem; background: #333; padding: 2px 8px; border-radius: 20px; display: inline-block; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
+        .modal.active { display: block; }
+        .modal-close { position: absolute; top: 20px; right: 20px; width: 45px; height: 45px; border-radius: 50%; background: rgba(0,0,0,0.8); border: none; color: white; font-size: 24px; cursor: pointer; z-index: 1002; }
+        .modal-close:hover { background: #e50914; }
+        video { width: 100%; height: 100%; background: #000; }
+        .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #e50914; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .status { text-align: center; padding: 40px; color: #888; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="hero">
+        <h1>🎬 Film Arşivi</h1>
+        <p>M3U dosyasından otomatik yüklenir • Her güncellemede tekrar işlem yapmaya gerek yok</p>
+        <div class="stats" id="stats">📀 Filmler yükleniyor...</div>
+    </div>
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Film ara..." autofocus>
+        <button onclick="search()">🔍 Ara</button>
+    </div>
+    <div id="resultsArea">
+        <div class="results-info"><span id="resultCount">0</span> sonuç</div>
+        <div id="movieGrid" class="movie-grid"><div class="status">⏳ M3U dosyası okunuyor...</div></div>
+    </div>
+</div>
+<div id="playerModal" class="modal"><button class="modal-close" onclick="closePlayer()">✕</button><div id="playerContainer" class="modal-container"><div class="loading"><div class="spinner"></div><div>Yükleniyor...</div></div></div></div>
+
+<script>
+    let moviesData = [];
+    
+    // ⚠️ BURAYI KENDİ GITHUB BİLGİLERİNLE DEĞİŞTİR ⚠️
+    // Örnek: https://raw.githubusercontent.com/KULLANICI_ADI/film-arsivim/main/liste.m3u
+    const M3U_URL = 'https://raw.githubusercontent.com/KULLANICI_ADI/film-arsivim/main/liste.m3u';
+    
+    async function loadM3U() {
+        try {
+            const response = await fetch(M3U_URL);
+            if (!response.ok) throw new Error('Dosya bulunamadı');
+            const text = await response.text();
+            parseM3U(text);
+        } catch(e) {
+            document.getElementById('movieGrid').innerHTML = '<div class="status">❌ M3U dosyası yüklenemedi.<br><br>📌 GitHub\'daki dosya yolunu kontrol edin:<br><code style="background:#333;padding:5px;">' + M3U_URL + '</code></div>';
+            document.getElementById('stats').innerHTML = '❌ Yükleme hatası';
+        }
+    }
+    
+    function parseM3U(content) {
+        const lines = content.split('\n');
+        const movies = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('#EXTINF:')) {
+                const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+                const poster = logoMatch ? logoMatch[1] : '';
+                const titleMatch = line.match(/,([^,]+)$/);
+                let title = titleMatch ? titleMatch[1].trim() : 'Bilinmeyen';
+                if (title.startsWith('TR:')) title = title.substring(3);
+                
+                if (i + 1 < lines.length && !lines[i+1].startsWith('#')) {
+                    const url = lines[i+1].trim();
+                    let type = 'direct';
+                    if (url.includes('vidmody')) type = 'vidmody';
+                    else if (url.includes('vidrame')) type = 'vidrame';
+                    else if (url.includes('.m3u8')) type = 'm3u8';
+                    
+                    movies.push({ title, poster, url, type });
+                }
+            }
+        }
+        
+        moviesData = movies;
+        document.getElementById('stats').innerHTML = `📀 ${moviesData.length} film yüklendi • 🔍 Arama yapın`;
+        document.getElementById('movieGrid').innerHTML = '<div class="status">🔍 Arama kutusuna film adı yazın</div>';
+        console.log(`${moviesData.length} film yüklendi`);
+    }
+    
+    function search() {
+        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+        if (query.length < 2) {
+            document.getElementById('movieGrid').innerHTML = '<div class="status">🔍 En az 2 karakter girin</div>';
+            document.getElementById('resultCount').innerText = '0';
+            return;
+        }
+        
+        const results = moviesData.filter(m => m.title.toLowerCase().includes(query));
+        document.getElementById('resultCount').innerText = results.length;
+        
+        if (results.length === 0) {
+            document.getElementById('movieGrid').innerHTML = '<div class="status">🎬 Film bulunamadı. Farklı bir kelime deneyin.</div>';
+            return;
+        }
+        
+        document.getElementById('movieGrid').innerHTML = results.slice(0, 50).map(m => `
+            <div class="movie-card" onclick='playMovie(${JSON.stringify(m)})'>
+                <div class="movie-poster">${m.poster ? `<img src="${m.poster}" onerror="this.parentElement.innerHTML='🎬'">` : '🎬'}</div>
+                <div class="movie-info">
+                    <div class="movie-title">${m.title}</div>
+                    <span class="badge">${m.type === 'vidmody' ? '🔗 Vidmody' : m.type === 'vidrame' ? '🎬 Vidrame' : '📺 M3U8'}</span>
+                </div>
+            </div>
+        `).join('');
+        
+        if (results.length > 50) {
+            const more = document.createElement('div');
+            more.className = 'status';
+            more.style.padding = '20px';
+            more.innerHTML = `📌 +${results.length - 50} film daha var. Daha spesifik arayın.`;
+            document.getElementById('movieGrid').appendChild(more);
+        }
+    }
+    
+    async function resolveUrl(movie) {
+        if (movie.type !== 'vidmody') return movie.url;
+        try {
+            const proxy = `https://goproxy.watchbuddy.tv/fetch?url=${encodeURIComponent(movie.url)}&referer=https://vidmody.com/`;
+            const res = await fetch(proxy);
+            const text = await res.text();
+            const match = text.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/);
+            return match ? match[0] : movie.url;
+        } catch(e) { return movie.url; }
+    }
+    
+    async function playMovie(movie) {
+        const modal = document.getElementById('playerModal');
+        const container = document.getElementById('playerContainer');
+        container.innerHTML = '<div class="loading"><div class="spinner"></div><div>Video bağlantısı hazırlanıyor...</div></div>';
+        modal.classList.add('active');
+        const videoUrl = await resolveUrl(movie);
+        container.innerHTML = `<video id="videoPlayer" controls autoplay style="width:100%;height:100%;"><source src="${videoUrl}"></video>`;
+        const video = document.getElementById('videoPlayer');
+        if (videoUrl.includes('.m3u8') && window.Hls && Hls.isSupported()) {
+            new Hls().loadSource(videoUrl).attachMedia(video);
+        }
+    }
+    
+    function closePlayer() {
+        document.getElementById('playerModal').classList.remove('active');
+        document.getElementById('playerContainer').innerHTML = '<div class="loading"><div class="spinner"></div><div>Yükleniyor...</div></div>';
+    }
+    
+    document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') search(); });
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+    script.onload = () => loadM3U();
+    document.head.appendChild(script);
+</script>
+</body>
+</html>
