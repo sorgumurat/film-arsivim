@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Film Arşivi</title>
+    <title>Film Arşivi - WatchBuddy Player</title>
+    <link rel="stylesheet" href="https://stream.watchbuddy.tv/static/home/CSS/style.bundle.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #0a0a0a; font-family: system-ui, -apple-system, sans-serif; color: #fff; }
@@ -14,7 +15,6 @@
         .search-box { display: flex; gap: 10px; background: #2a2a2a; border-radius: 40px; padding: 5px; }
         .search-box input { flex: 1; background: transparent; border: none; padding: 14px 20px; font-size: 1rem; color: white; outline: none; }
         .search-box button { background: #e50914; border: none; padding: 0 25px; border-radius: 40px; color: white; font-weight: bold; cursor: pointer; }
-        .search-box button:hover { background: #f40612; }
         .results-info { max-width: 1200px; margin: 20px auto 10px; padding: 0 20px; color: #888; font-size: 0.9rem; border-bottom: 1px solid #333; padding-bottom: 10px; }
         .movie-grid { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
         .movie-card { background: #1a1a1a; border-radius: 10px; overflow: hidden; cursor: pointer; display: flex; gap: 12px; padding: 12px; transition: 0.2s; }
@@ -23,20 +23,15 @@
         .movie-poster img { width: 100%; height: 100%; object-fit: cover; }
         .movie-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
         .movie-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 6px; }
-        .badge { font-size: 0.65rem; background: #333; padding: 2px 8px; border-radius: 20px; display: inline-block; width: fit-content; }
-        .status { text-align: center; padding: 60px 20px; color: #666; font-size: 1rem; }
+        .badge { font-size: 0.65rem; background: #333; padding: 2px 8px; border-radius: 20px; display: inline-block; }
+        .status { text-align: center; padding: 60px 20px; color: #666; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; }
         .modal.active { display: block; }
-        .modal-content { width: 100%; height: 100%; display: flex; flex-direction: column; }
         .modal-header { background: #1a1a1a; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
         .modal-header h3 { font-size: 1.1rem; margin: 0; }
         .modal-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 10px; }
         .modal-close:hover { color: #e50914; }
-        .modal-video { flex: 1; background: #000; position: relative; }
-        video { width: 100%; height: 100%; background: #000; }
-        .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
-        .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #e50914; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .modal-content { width: 100%; height: calc(100% - 60px); }
         @media (max-width: 600px) { .movie-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -57,16 +52,13 @@
 <div class="results-info"><span id="resultCount">0</span> sonuç</div>
 <div id="movieGrid" class="movie-grid"><div class="status">⏳ M3U dosyası okunuyor...</div></div>
 
+<!-- WatchBuddy Player Modal -->
 <div id="playerModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="playerTitle">Film İzle</h3>
-            <button class="modal-close" onclick="closePlayer()">✕</button>
-        </div>
-        <div id="playerContainer" class="modal-video">
-            <div class="loading"><div class="spinner"></div><div>Yükleniyor...</div></div>
-        </div>
+    <div class="modal-header">
+        <h3 id="playerTitle">Film İzle</h3>
+        <button class="modal-close" onclick="closePlayer()">✕</button>
     </div>
+    <div id="playerContainer" class="modal-content"></div>
 </div>
 
 <script>
@@ -150,53 +142,91 @@
         }
     }
     
-    // 🔧 DÜZELTİLMİŞ PROXY FONKSİYONU
-    async function resolveUrl(movie) {
-        // Doğrudan m3u8 ise olduğu gibi döndür
-        if (movie.type === 'vidrame' || movie.type === 'm3u8' || movie.url.includes('.m3u8')) {
-            return movie.url;
-        }
-        
-        // Vidmody linkleri için WatchBuddy proxy'sini kullan
-        if (movie.type === 'vidmody') {
-            return `https://goproxy.watchbuddy.tv/proxy/video?url=${encodeURIComponent(movie.url)}&referer=https://vidmody.com/`;
-        }
-        
-        return movie.url;
-    }
-    
+    // WatchBuddy'nin player'ını yükle
     async function playMovie(movie) {
         const modal = document.getElementById('playerModal');
         const container = document.getElementById('playerContainer');
         const titleEl = document.getElementById('playerTitle');
         
         titleEl.innerText = movie.title;
-        container.innerHTML = '<div class="loading"><div class="spinner"></div><div>Video bağlantısı hazırlanıyor...</div></div>';
         modal.classList.add('active');
         
-        const videoUrl = await resolveUrl(movie);
+        // WatchBuddy'nin player yapısını oluştur
+        container.innerHTML = `
+            <div class="detail-container" style="height:100%;">
+                <div class="source-selection player-panel-shell">
+                    <h3><i class="fas fa-server"></i> Kaynaklar</h3>
+                    <div id="video-links-ui" class="source-list"></div>
+                </div>
+                <div id="video-player-container" style="height:calc(100% - 80px);">
+                    <div id="video-player-wrapper">
+                        <div id="loading-overlay" class="player-loading">
+                            <div class="player-message">
+                                <div class="wp-spinner"></div>
+                                <div>Video yükleniyor...</div>
+                            </div>
+                        </div>
+                        <video id="video-player" playsinline webkit-playsinline crossorigin="anonymous"></video>
+                        <div id="custom-subtitle-overlay" class="custom-subtitle-overlay"></div>
+                        <div class="video-controls-overlay">
+                            <div class="action-animation" id="action-animation"><i class="fas fa-play"></i></div>
+                            <div class="bottom-controls">
+                                <div class="progress-container" id="custom-progress-container">
+                                    <div class="progress-bar-fill" id="custom-progress-fill"><div class="progress-handle"></div></div>
+                                    <div id="preview-thumbnail" class="preview-thumbnail is-hidden"><div class="preview-canvas-wrapper"><canvas id="preview-canvas"></canvas><div class="preview-loading"><div class="wp-spinner wp-spinner-sm"></div></div></div><span id="preview-time" class="preview-time">0:00</span></div>
+                                </div>
+                                <div class="control-row">
+                                    <div class="control-group">
+                                        <button class="ctrl-btn" id="bottom-play-pause"><i class="fas fa-play"></i></button>
+                                        <button class="ctrl-btn" id="custom-backward"><i class="fas fa-undo"></i></button>
+                                        <button class="ctrl-btn" id="custom-forward"><i class="fas fa-redo"></i></button>
+                                        <div class="volume-group">
+                                            <button class="ctrl-btn" id="custom-mute"><i class="fas fa-volume-up"></i></button>
+                                            <input type="range" id="custom-volume-slider" class="volume-slider" min="0" max="1" step="0.01" value="1">
+                                        </div>
+                                        <div class="time-display"><span id="current-time">0:00</span> / <span id="duration-time">0:00</span></div>
+                                    </div>
+                                    <div class="control-group">
+                                        <button class="ctrl-btn is-hidden" id="custom-audio"><i class="fas fa-headphones-alt"></i></button>
+                                        <button class="ctrl-btn is-hidden" id="custom-cc"><i class="fas fa-closed-captioning"></i></button>
+                                        <button class="ctrl-btn" id="custom-fullscreen"><i class="fas fa-expand"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="video-links-data" class="is-hidden"
+                 data-content-title="${movie.title}"
+                 data-content-url="${movie.url}">
+                <div class="video-link-item" data-name="Video" data-url="${movie.url}" data-referer="https://vidmody.com/"></div>
+            </div>
+        `;
         
-        container.innerHTML = `<video id="videoPlayer" controls autoplay style="width:100%; height:100%;"><source src="${videoUrl}"></video>`;
-        
-        const video = document.getElementById('videoPlayer');
-        if (videoUrl.includes('.m3u8') && window.Hls && Hls.isSupported()) {
-            const hls = new Hls();
-            hls.loadSource(videoUrl);
-            hls.attachMedia(video);
+        // WatchBuddy'nin player.js'ini yükle (eğer yüklenmemişse)
+        if (typeof window.WatchBuddyPlayer === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://stream.watchbuddy.tv/static/home/JS/player.min.js';
+            script.onload = () => {
+                // Player yüklendikten sonra video-links-data otomatik işlenir
+                console.log('WatchBuddy Player yüklendi');
+            };
+            document.head.appendChild(script);
         }
     }
     
     function closePlayer() {
         document.getElementById('playerModal').classList.remove('active');
-        document.getElementById('playerContainer').innerHTML = '<div class="loading"><div class="spinner"></div><div>Yükleniyor...</div></div>';
+        document.getElementById('playerContainer').innerHTML = '';
     }
     
     document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') search(); });
     
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
-    script.onload = () => loadM3U();
-    document.head.appendChild(script);
+    const hlsScript = document.createElement('script');
+    hlsScript.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+    hlsScript.onload = () => loadM3U();
+    document.head.appendChild(hlsScript);
 </script>
 </body>
 </html>
