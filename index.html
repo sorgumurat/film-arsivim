@@ -22,15 +22,6 @@
         .movie-info { padding: 12px; }
         .movie-title { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .movie-year { font-size: 0.7rem; color: #888; margin-top: 4px; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
-        .modal.active { display: block; }
-        .modal-header { background: #1a1a1a; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .modal-header h3 { font-size: 1rem; }
-        .modal-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
-        .modal-close:hover { color: #e50914; }
-        .modal-video { width: 100%; height: calc(100% - 60px); background: #000; }
-        iframe { width: 100%; height: 100%; border: none; }
-        .loading { text-align: center; padding: 40px; color: #666; }
         .status { text-align: center; padding: 60px; color: #666; }
     </style>
 </head>
@@ -51,29 +42,13 @@
 <div id="resultsInfo" class="results-info" style="display: none;"><span id="resultCount">0</span> sonuç bulundu</div>
 <div id="movieGrid" class="movie-grid"><div class="status">🎬 Film aramak için yukarıya bir isim yazın</div></div>
 
-<div id="playerModal" class="modal">
-    <div class="modal-header">
-        <h3 id="playerTitle">Film İzle</h3>
-        <button class="modal-close" onclick="closePlayer()">✕</button>
-    </div>
-    <div id="playerContainer" class="modal-video">
-        <div class="loading">⏳ Yükleniyor...</div>
-    </div>
-</div>
-
 <script>
-    // TMDB API Key
     const TMDB_API_KEY = 'e482e6dc4fe81df89c51267e9e14cf96';
-    
-    // Sadece çalışan embed servisi
     const EMBED_URL = 'https://vidsrc.to/embed/movie/';
     
     async function searchMovies() {
         const query = document.getElementById('searchInput').value.trim();
-        if (query.length < 2) {
-            document.getElementById('movieGrid').innerHTML = '<div class="status">🔍 En az 2 karakter girin</div>';
-            return;
-        }
+        if (query.length < 2) return;
         
         document.getElementById('movieGrid').innerHTML = '<div class="status">⏳ Filmler aranıyor...</div>';
         
@@ -82,20 +57,20 @@
                 `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=tr-TR`
             );
             const data = await response.json();
-            
             const results = data.results || [];
+            
             document.getElementById('resultCount').innerText = results.length;
             document.getElementById('resultsInfo').style.display = 'block';
             
             if (results.length === 0) {
-                document.getElementById('movieGrid').innerHTML = '<div class="status">🎬 Film bulunamadı. Farklı bir kelime deneyin.</div>';
+                document.getElementById('movieGrid').innerHTML = '<div class="status">🎬 Film bulunamadı.</div>';
                 return;
             }
             
             document.getElementById('movieGrid').innerHTML = results.map(movie => `
-                <div class="movie-card" onclick="playMovie(${movie.id}, '${movie.title.replace(/'/g, "\\'")}', ${movie.release_date ? movie.release_date.substring(0,4) : '0'})">
+                <div class="movie-card" onclick="window.open('${EMBED_URL}${movie.id}', '_blank')">
                     <div class="movie-poster">
-                        ${movie.poster_path ? `<img src="https://image.tmdb.org/t/p/w200${movie.poster_path}" alt="${movie.title}">` : '🎬'}
+                        ${movie.poster_path ? `<img src="https://image.tmdb.org/t/p/w200${movie.poster_path}">` : '🎬'}
                     </div>
                     <div class="movie-info">
                         <div class="movie-title">${movie.title}</div>
@@ -105,36 +80,8 @@
             `).join('');
             
         } catch(e) {
-            console.error(e);
-            document.getElementById('movieGrid').innerHTML = '<div class="status">❌ API hatası. Lütfen tekrar deneyin.</div>';
+            document.getElementById('movieGrid').innerHTML = '<div class="status">❌ Hata oluştu.</div>';
         }
-    }
-    
-    function playMovie(movieId, title, year) {
-        const modal = document.getElementById('playerModal');
-        const container = document.getElementById('playerContainer');
-        const titleEl = document.getElementById('playerTitle');
-        
-        titleEl.innerText = `${title} (${year || '?'})`;
-        modal.classList.add('active');
-        
-        const embedUrl = EMBED_URL + movieId;
-        
-        container.innerHTML = `
-            <iframe src="${embedUrl}" 
-                    allowfullscreen 
-                    allow="autoplay; encrypted-media"
-                    style="width:100%; height:100%; border:none;">
-            </iframe>
-            <div style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:8px; font-size:11px; color:#888;">
-                🎬 vidsrc.to
-            </div>
-        `;
-    }
-    
-    function closePlayer() {
-        document.getElementById('playerModal').classList.remove('active');
-        document.getElementById('playerContainer').innerHTML = '<div class="loading">⏳ Yükleniyor...</div>';
     }
     
     document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') searchMovies(); });
