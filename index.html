@@ -3,230 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Film Arşivi - WatchBuddy Player</title>
-    <link rel="stylesheet" href="https://stream.watchbuddy.tv/static/home/CSS/style.bundle.min.css">
+    <title>Film Arşivi - TMDB + Embed</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #0a0a0a; font-family: system-ui, -apple-system, sans-serif; color: #fff; }
-        .header { background: #141414; padding: 20px; border-bottom: 1px solid #333; text-align: center; }
-        .header h1 { font-size: 1.8rem; background: linear-gradient(135deg, #e50914, #ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block; }
-        .stats { font-size: 0.8rem; color: #888; margin-top: 5px; }
-        .search-area { max-width: 500px; margin: 30px auto; padding: 0 20px; }
+        body { background: #0a0a0a; font-family: system-ui; color: #fff; }
+        .header { background: #141414; padding: 20px; text-align: center; border-bottom: 1px solid #333; }
+        .header h1 { font-size: 1.8rem; background: linear-gradient(135deg, #e50914, #ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .search-area { max-width: 600px; margin: 30px auto; padding: 0 20px; }
         .search-box { display: flex; gap: 10px; background: #2a2a2a; border-radius: 40px; padding: 5px; }
-        .search-box input { flex: 1; background: transparent; border: none; padding: 14px 20px; font-size: 1rem; color: white; outline: none; }
+        .search-box input { flex: 1; background: transparent; border: none; padding: 14px 20px; color: white; font-size: 1rem; outline: none; }
         .search-box button { background: #e50914; border: none; padding: 0 25px; border-radius: 40px; color: white; font-weight: bold; cursor: pointer; }
-        .results-info { max-width: 1200px; margin: 20px auto 10px; padding: 0 20px; color: #888; font-size: 0.9rem; border-bottom: 1px solid #333; padding-bottom: 10px; }
-        .movie-grid { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
-        .movie-card { background: #1a1a1a; border-radius: 10px; overflow: hidden; cursor: pointer; display: flex; gap: 12px; padding: 12px; transition: 0.2s; }
-        .movie-card:hover { background: #2a2a2a; transform: translateX(5px); }
-        .movie-poster { width: 70px; height: 100px; background: #2a2a2a; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 2rem; flex-shrink: 0; overflow: hidden; }
+        .results-info { max-width: 1200px; margin: 20px auto; padding: 0 20px; color: #888; border-bottom: 1px solid #333; }
+        .movie-grid { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
+        .movie-card { background: #1a1a1a; border-radius: 10px; overflow: hidden; cursor: pointer; transition: 0.2s; }
+        .movie-card:hover { transform: translateY(-5px); background: #2a2a2a; }
+        .movie-poster { aspect-ratio: 2/3; background: #2a2a2a; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
         .movie-poster img { width: 100%; height: 100%; object-fit: cover; }
-        .movie-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-        .movie-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 6px; }
-        .badge { font-size: 0.65rem; background: #333; padding: 2px 8px; border-radius: 20px; display: inline-block; }
-        .status { text-align: center; padding: 60px 20px; color: #666; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; }
+        .movie-info { padding: 12px; }
+        .movie-title { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .movie-year { font-size: 0.7rem; color: #888; margin-top: 4px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
         .modal.active { display: block; }
-        .modal-header { background: #1a1a1a; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        .modal-header h3 { font-size: 1.1rem; margin: 0; }
-        .modal-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 10px; }
+        .modal-header { background: #1a1a1a; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { font-size: 1rem; }
+        .modal-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
         .modal-close:hover { color: #e50914; }
-        .modal-content { width: 100%; height: calc(100% - 60px); }
-        @media (max-width: 600px) { .movie-grid { grid-template-columns: 1fr; } }
+        .modal-video { width: 100%; height: calc(100% - 60px); background: #000; }
+        iframe { width: 100%; height: 100%; border: none; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .status { text-align: center; padding: 60px; color: #666; }
     </style>
 </head>
 <body>
 
 <div class="header">
     <h1>🎬 Film Arşivi</h1>
-    <div class="stats" id="stats">📀 Filmler yükleniyor...</div>
+    <div style="font-size: 0.8rem; color: #888; margin-top: 5px;">TMDB + Embed | Altyazı & Dual Ses Desteği</div>
 </div>
 
 <div class="search-area">
     <div class="search-box">
         <input type="text" id="searchInput" placeholder="Film ara... (örn: Avatar, Matrix)" autofocus>
-        <button onclick="search()">🔍 Ara</button>
+        <button onclick="searchMovies()">🔍 Ara</button>
     </div>
 </div>
 
-<div class="results-info"><span id="resultCount">0</span> sonuç</div>
-<div id="movieGrid" class="movie-grid"><div class="status">⏳ M3U dosyası okunuyor...</div></div>
+<div id="resultsInfo" class="results-info" style="display: none;"><span id="resultCount">0</span> sonuç bulundu</div>
+<div id="movieGrid" class="movie-grid"><div class="status">🎬 Film aramak için yukarıya bir isim yazın</div></div>
 
-<!-- WatchBuddy Player Modal -->
 <div id="playerModal" class="modal">
     <div class="modal-header">
         <h3 id="playerTitle">Film İzle</h3>
         <button class="modal-close" onclick="closePlayer()">✕</button>
     </div>
-    <div id="playerContainer" class="modal-content"></div>
+    <div id="playerContainer" class="modal-video">
+        <div class="loading">⏳ Yükleniyor...</div>
+    </div>
 </div>
 
 <script>
-    let moviesData = [];
-    const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/film-arsivim/main/liste.m3u';
+    // TMDB API Key (Sizin aldığınız anahtar)
+    const TMDB_API_KEY = 'e482e6dc4fe81df89c51267e9e14cf96';
     
-    async function loadM3U() {
-        try {
-            const response = await fetch(M3U_URL);
-            if (!response.ok) throw new Error('HTTP ' + response.status);
-            const text = await response.text();
-            parseM3U(text);
-        } catch(e) {
-            document.getElementById('movieGrid').innerHTML = `<div class="status">❌ M3U dosyası yüklenemedi.<br>${M3U_URL}</div>`;
-            document.getElementById('stats').innerHTML = '❌ Yükleme hatası';
-        }
-    }
+    // Çalışan embed servisleri (sırayla denenir)
+    const EMBED_SERVERS = [
+        'https://vidsrc.to/embed/movie/',
+        'https://www.2embed.cc/embed/',
+        'https://embed.su/embed/movie/',
+        'https://multiembed.mov/directstream.php?video_id='
+    ];
+    let currentServer = 0;
     
-    function parseM3U(content) {
-        const lines = content.split('\n');
-        const movies = [];
-        
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line.startsWith('#EXTINF:')) {
-                const logoMatch = line.match(/tvg-logo="([^"]+)"/);
-                const poster = logoMatch ? logoMatch[1] : '';
-                const titleMatch = line.match(/,([^,]+)$/);
-                let title = titleMatch ? titleMatch[1].trim() : 'Bilinmeyen';
-                if (title.startsWith('TR:')) title = title.substring(3);
-                
-                if (i + 1 < lines.length && !lines[i+1].startsWith('#')) {
-                    const url = lines[i+1].trim();
-                    let type = 'direct';
-                    if (url.includes('vidmody')) type = 'vidmody';
-                    else if (url.includes('vidrame')) type = 'vidrame';
-                    else if (url.includes('.m3u8')) type = 'm3u8';
-                    
-                    movies.push({ title, poster, url, type });
-                }
-            }
-        }
-        
-        moviesData = movies;
-        document.getElementById('stats').innerHTML = `📀 ${moviesData.length} film yüklendi`;
-        document.getElementById('movieGrid').innerHTML = '<div class="status">🔍 Arama kutusuna film adı yazın</div>';
-    }
-    
-    function search() {
-        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    async function searchMovies() {
+        const query = document.getElementById('searchInput').value.trim();
         if (query.length < 2) {
             document.getElementById('movieGrid').innerHTML = '<div class="status">🔍 En az 2 karakter girin</div>';
-            document.getElementById('resultCount').innerText = '0';
             return;
         }
         
-        const results = moviesData.filter(m => m.title.toLowerCase().includes(query));
-        document.getElementById('resultCount').innerText = results.length;
+        document.getElementById('movieGrid').innerHTML = '<div class="status">⏳ Filmler aranıyor...</div>';
         
-        if (results.length === 0) {
-            document.getElementById('movieGrid').innerHTML = '<div class="status">🎬 Film bulunamadı. Farklı bir kelime deneyin.</div>';
-            return;
-        }
-        
-        document.getElementById('movieGrid').innerHTML = results.slice(0, 50).map(m => `
-            <div class="movie-card" onclick='playMovie(${JSON.stringify(m)})'>
-                <div class="movie-poster">${m.poster ? `<img src="${m.poster}" onerror="this.parentElement.innerHTML='🎬'">` : '🎬'}</div>
-                <div class="movie-info">
-                    <div class="movie-title">${m.title}</div>
-                    <span class="badge">${m.type === 'vidmody' ? '🔗 Vidmody' : m.type === 'vidrame' ? '🎬 Vidrame' : '📺 M3U8'}</span>
+        try {
+            const response = await fetch(
+                `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=tr-TR`
+            );
+            const data = await response.json();
+            
+            const results = data.results || [];
+            document.getElementById('resultCount').innerText = results.length;
+            document.getElementById('resultsInfo').style.display = 'block';
+            
+            if (results.length === 0) {
+                document.getElementById('movieGrid').innerHTML = '<div class="status">🎬 Film bulunamadı. Farklı bir kelime deneyin.</div>';
+                return;
+            }
+            
+            document.getElementById('movieGrid').innerHTML = results.map(movie => `
+                <div class="movie-card" onclick="playMovie(${movie.id}, '${movie.title.replace(/'/g, "\\'")}', ${movie.release_date ? movie.release_date.substring(0,4) : '0'})">
+                    <div class="movie-poster">
+                        ${movie.poster_path ? `<img src="https://image.tmdb.org/t/p/w200${movie.poster_path}" alt="${movie.title}">` : '🎬'}
+                    </div>
+                    <div class="movie-info">
+                        <div class="movie-title">${movie.title}</div>
+                        <div class="movie-year">${movie.release_date ? movie.release_date.substring(0,4) : '?'}</div>
+                    </div>
                 </div>
-            </div>
-        `).join('');
-        
-        if (results.length > 50) {
-            const more = document.createElement('div');
-            more.className = 'status';
-            more.style.padding = '20px';
-            more.innerHTML = `📌 +${results.length - 50} film daha var. Daha spesifik arayın.`;
-            document.getElementById('movieGrid').appendChild(more);
+            `).join('');
+            
+        } catch(e) {
+            console.error(e);
+            document.getElementById('movieGrid').innerHTML = '<div class="status">❌ API hatası. Lütfen tekrar deneyin.</div>';
         }
     }
     
-    // WatchBuddy'nin player'ını yükle
-    async function playMovie(movie) {
+    function playMovie(movieId, title, year) {
         const modal = document.getElementById('playerModal');
         const container = document.getElementById('playerContainer');
         const titleEl = document.getElementById('playerTitle');
         
-        titleEl.innerText = movie.title;
+        titleEl.innerText = `${title} (${year || '?'})`;
         modal.classList.add('active');
         
-        // WatchBuddy'nin player yapısını oluştur
+        currentServer = 0;
+        loadEmbed(movieId);
+    }
+    
+    function loadEmbed(movieId) {
+        const container = document.getElementById('playerContainer');
+        let embedUrl;
+        
+        if (EMBED_SERVERS[currentServer].includes('multiembed')) {
+            embedUrl = EMBED_SERVERS[currentServer] + movieId + '&source=vidsrc';
+        } else {
+            embedUrl = EMBED_SERVERS[currentServer] + movieId;
+        }
+        
         container.innerHTML = `
-            <div class="detail-container" style="height:100%;">
-                <div class="source-selection player-panel-shell">
-                    <h3><i class="fas fa-server"></i> Kaynaklar</h3>
-                    <div id="video-links-ui" class="source-list"></div>
-                </div>
-                <div id="video-player-container" style="height:calc(100% - 80px);">
-                    <div id="video-player-wrapper">
-                        <div id="loading-overlay" class="player-loading">
-                            <div class="player-message">
-                                <div class="wp-spinner"></div>
-                                <div>Video yükleniyor...</div>
-                            </div>
-                        </div>
-                        <video id="video-player" playsinline webkit-playsinline crossorigin="anonymous"></video>
-                        <div id="custom-subtitle-overlay" class="custom-subtitle-overlay"></div>
-                        <div class="video-controls-overlay">
-                            <div class="action-animation" id="action-animation"><i class="fas fa-play"></i></div>
-                            <div class="bottom-controls">
-                                <div class="progress-container" id="custom-progress-container">
-                                    <div class="progress-bar-fill" id="custom-progress-fill"><div class="progress-handle"></div></div>
-                                    <div id="preview-thumbnail" class="preview-thumbnail is-hidden"><div class="preview-canvas-wrapper"><canvas id="preview-canvas"></canvas><div class="preview-loading"><div class="wp-spinner wp-spinner-sm"></div></div></div><span id="preview-time" class="preview-time">0:00</span></div>
-                                </div>
-                                <div class="control-row">
-                                    <div class="control-group">
-                                        <button class="ctrl-btn" id="bottom-play-pause"><i class="fas fa-play"></i></button>
-                                        <button class="ctrl-btn" id="custom-backward"><i class="fas fa-undo"></i></button>
-                                        <button class="ctrl-btn" id="custom-forward"><i class="fas fa-redo"></i></button>
-                                        <div class="volume-group">
-                                            <button class="ctrl-btn" id="custom-mute"><i class="fas fa-volume-up"></i></button>
-                                            <input type="range" id="custom-volume-slider" class="volume-slider" min="0" max="1" step="0.01" value="1">
-                                        </div>
-                                        <div class="time-display"><span id="current-time">0:00</span> / <span id="duration-time">0:00</span></div>
-                                    </div>
-                                    <div class="control-group">
-                                        <button class="ctrl-btn is-hidden" id="custom-audio"><i class="fas fa-headphones-alt"></i></button>
-                                        <button class="ctrl-btn is-hidden" id="custom-cc"><i class="fas fa-closed-captioning"></i></button>
-                                        <button class="ctrl-btn" id="custom-fullscreen"><i class="fas fa-expand"></i></button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div id="video-links-data" class="is-hidden"
-                 data-content-title="${movie.title}"
-                 data-content-url="${movie.url}">
-                <div class="video-link-item" data-name="Video" data-url="${movie.url}" data-referer="https://vidmody.com/"></div>
+            <iframe src="${embedUrl}" 
+                    allowfullscreen 
+                    allow="autoplay; encrypted-media"
+                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+                    style="width:100%; height:100%; border:none;">
+            </iframe>
+            <div style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:8px; font-size:11px; color:#888;">
+                Kaynak: ${EMBED_SERVERS[currentServer].replace('https://', '').replace('/embed/movie/', '').replace('/directstream.php?video_id=', '')}
             </div>
         `;
         
-        // WatchBuddy'nin player.js'ini yükle (eğer yüklenmemişse)
-        if (typeof window.WatchBuddyPlayer === 'undefined') {
-            const script = document.createElement('script');
-            script.src = 'https://stream.watchbuddy.tv/static/home/JS/player.min.js';
-            script.onload = () => {
-                // Player yüklendikten sonra video-links-data otomatik işlenir
-                console.log('WatchBuddy Player yüklendi');
-            };
-            document.head.appendChild(script);
-        }
+        // 8 saniye sonra iframe yüklenmediyse sonraki servisi dene
+        setTimeout(() => {
+            const iframe = container.querySelector('iframe');
+            if (iframe && !iframe.contentDocument && iframe.contentWindow === null) {
+                currentServer++;
+                if (currentServer < EMBED_SERVERS.length) {
+                    console.log(`Embed servisi çalışmadı, ${EMBED_SERVERS[currentServer]} deneniyor...`);
+                    loadEmbed(movieId);
+                } else {
+                    container.innerHTML = '<div class="loading">❌ Hiçbir embed servisi çalışmadı.<br><br>📌 Farklı bir film deneyin veya daha sonra tekrar deneyin.</div>';
+                }
+            }
+        }, 8000);
     }
     
     function closePlayer() {
         document.getElementById('playerModal').classList.remove('active');
-        document.getElementById('playerContainer').innerHTML = '';
+        document.getElementById('playerContainer').innerHTML = '<div class="loading">⏳ Yükleniyor...</div>';
     }
     
-    document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') search(); });
-    
-    const hlsScript = document.createElement('script');
-    hlsScript.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
-    hlsScript.onload = () => loadM3U();
-    document.head.appendChild(hlsScript);
+    document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') searchMovies(); });
 </script>
 </body>
 </html>
